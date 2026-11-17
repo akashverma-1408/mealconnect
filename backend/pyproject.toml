@@ -6,6 +6,19 @@ requires-python = ">=3.13"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = ["unit: fast tests without database or HTTP (run with -m unit)"]
+# Starlette suggests a newer test HTTP client; harmless until that package is vetted.
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 90          # CI fails if coverage drops below this
+show_missing = true
+skip_covered = true
+exclude_also = ["if __name__ == .__main__.:", "raise NotImplementedError"]
 
 [tool.ruff]
 line-length = 100

@@ -16,5 +16,15 @@ export default defineConfig({
     setupFiles: './src/test/setup.js',
     globals: true,
     css: false,
+    exclude: ['e2e/**', 'node_modules/**'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{js,jsx}'],
+      exclude: ['src/main.jsx', 'src/test/**', '**/*.test.{js,jsx}'],
+      reporter: ['text-summary', 'html'],
+      // Regression floor, raised as coverage grows. Flows not unit-tested here are
+      // covered end-to-end by Playwright (e2e/).
+      thresholds: { lines: 38, statements: 36, branches: 43, functions: 25 },
+    },
   },
 })

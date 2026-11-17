@@ -98,6 +98,19 @@ def wipe(db: Session) -> None:
     tables = ", ".join(t.name for t in Base.metadata.sorted_tables)
     db.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
     db.commit()
+    clear_redis_state()
+
+
+def clear_redis_state() -> int:
+    """Cached catalogue data and rate-limit counters describe the OLD data; drop them.
+    (Without this, menus from before the reset would be served for up to 5 minutes.)"""
+    from app.core.redis import get_redis
+
+    r = get_redis()
+    keys = [k for pattern in ("mc:cache:*", "mc:rl:*") for k in r.scan_iter(pattern)]
+    if keys:
+        r.delete(*keys)
+    return len(keys)
 
 
 def make_user(db: Session, email: str, name: str, role: UserRole, phone: str | None = None) -> User:
@@ -185,6 +198,7 @@ def seed(db: Session) -> dict[str, int]:
     comments = ["Delicious and hot!", "Good portions.", "Arrived a bit late but tasty.",
                 "Will order again.", None]  # fmt: skip
     orders_created = 0
+    asha_first_order: Order | None = None
     for i, final in enumerate(plan):
         customer, address = (asha, home) if i % 3 else (ravi, ravi_home)
         restaurant, items = restaurants[i % len(restaurants)]
@@ -235,6 +249,8 @@ def seed(db: Session) -> dict[str, int]:
                           restaurant_id=restaurant.id, rating=rating,
                           comment=rng.choice(comments)))  # fmt: skip
         orders_created += 1
+        if customer is asha and asha_first_order is None:
+            asha_first_order = order
     db.flush()
 
     # ---- recompute denormalized ratings from the reviews just inserted
@@ -248,7 +264,8 @@ def seed(db: Session) -> dict[str, int]:
         restaurant.avg_rating = Decimal(avg or 0).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
 
     db.add(Complaint(
-        raised_by=asha.id, order_id=1, restaurant_id=restaurants[0][0].id,
+        raised_by=asha.id, order_id=asha_first_order.id,
+        restaurant_id=asha_first_order.restaurant_id,
         subject="Missing item in my order",
         description="The garlic naan was missing from the delivered order.",
     ))  # fmt: skip

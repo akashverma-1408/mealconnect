@@ -19,7 +19,7 @@
 - [x] Phase 6 — Frontend (`docs/phase-06-frontend.md`; React 19 + Router 8 + TanStack Query, 24 tests)
 - [x] Phase 7 — Integration (`docs/phase-07-integration.md`; 3 workflows verified in browser, 4 bugs fixed)
 - [x] Phase 8 — Advanced (`docs/phase-08-advanced-features.md`; cache −50% p95, rate limits, job worker, Razorpay test mode, 122 tests)
-- [ ] Phase 9 — Testing
+- [x] Phase 9 — Testing (`docs/phase-09-testing.md`; 151 backend tests @92% cov, 33 frontend, Playwright E2E, Postman/Newman)
 - [ ] Phase 10 — Docker
 - [ ] Phase 11 — AWS deployment
 - [ ] Phase 12 — GitHub + documentation
@@ -30,7 +30,7 @@
 - [x] Working frontend + backend (verified end to end locally)
 - [x] PostgreSQL database (16 tables, migrations, seed data)
 - [ ] API documentation
-- [ ] Unit + integration tests
+- [x] Unit + integration + E2E tests (`scripts/test-all.sh --full`)
 - [ ] Dockerized app
 - [ ] GitHub repository
 - [ ] Live deployment
