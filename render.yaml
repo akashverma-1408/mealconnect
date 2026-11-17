@@ -11,7 +11,7 @@ services:
     name: mealconnect-api
     runtime: python
     plan: free
-    region: ohio                 # same region as the Neon database (AWS us-east-2, Ohio)
+    region: ohio # same region as the Neon database (AWS us-east-2, Ohio)
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     # Migrations run on every start (idempotent) so a deploy can never run new code on an old schema.
@@ -19,7 +19,7 @@ services:
       alembic upgrade head &&
       uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
     healthCheckPath: /api/v1/health
-    autoDeployTrigger: checksPass   # deploy only after the GitHub Actions CI run succeeds
+    autoDeployTrigger: checksPass # deploy only after the GitHub Actions CI run succeeds
     envVars:
       - key: PYTHON_VERSION
         value: 3.13.5
@@ -28,11 +28,11 @@ services:
       - key: LOG_JSON
         value: "true"
       # --- secrets you paste in the Render form (see docs/deployment.md) ---
-      - key: DATABASE_URL        # Neon connection string
+      - key: DATABASE_URL # Neon connection string
         sync: false
-      - key: REDIS_URL           # Upstash "rediss://..." URL (leave empty to run without Redis)
+      - key: REDIS_URL # Upstash "rediss://..." URL (leave empty to run without Redis)
         sync: false
-      - key: CORS_ORIGINS        # your Vercel URL, e.g. https://mealconnect.vercel.app
+      - key: CORS_ORIGINS # your Vercel URL, e.g. https://mealconnect.vercel.app
         sync: false
       # --- generated once by Render ---
       - key: JWT_SECRET_KEY
@@ -50,7 +50,7 @@ services:
       - key: EMBEDDED_WORKER
         value: "true"
       - key: WORKER_POLL_SECONDS
-        value: "20"             # few Redis commands: free Redis plans cap monthly usage
+        value: "20" # few Redis commands: free Redis plans cap monthly usage
       - key: DB_POOL_SIZE
         value: "3"
       - key: DB_MAX_OVERFLOW
