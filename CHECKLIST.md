@@ -16,7 +16,7 @@
 - [x] Phase 3 — Environment setup (`docs/phase-03-environment-setup.md`, `scripts/check-env.sh`)
 - [x] Phase 4 — Backend foundation + auth/users slice (`docs/phase-04-backend.md`; 13 endpoints, 49 tests, 90% coverage)
 - [x] Phase 5 — Database + domain APIs (`docs/phase-05-database-and-domain-apis.md`; 16 tables, 69 endpoints, 99 tests, seed data, smoke test)
-- [ ] Phase 6 — Frontend (React)
+- [x] Phase 6 — Frontend (`docs/phase-06-frontend.md`; React 19 + Router 8 + TanStack Query, 24 tests)
 - [ ] Phase 7 — Integration (customer / restaurant / admin flows)
 - [ ] Phase 8 — Advanced (Redis, notifications, payments, security, performance)
 - [ ] Phase 9 — Testing
