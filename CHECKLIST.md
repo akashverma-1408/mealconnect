@@ -21,18 +21,18 @@
 - [x] Phase 8 — Advanced (`docs/phase-08-advanced-features.md`; cache −50% p95, rate limits, job worker, Razorpay test mode, 122 tests)
 - [x] Phase 9 — Testing (`docs/phase-09-testing.md`; 151 backend tests @92% cov, 33 frontend, Playwright E2E, Postman/Newman)
 - [x] Phase 10 — Docker + CI (`docs/phase-10-docker.md`; 6-service Compose stack verified with smoke, Newman, Playwright; GitHub Actions workflow)
-- [ ] Phase 11 — AWS deployment
-- [ ] Phase 12 — GitHub + documentation
-- [ ] Phase 13 — Interview preparation
+- [~] Phase 11 — AWS deployment: IaC + deploy script written and validated (`docs/phase-11-aws.md`); NOT applied (needs your AWS account and billing)
+- [~] Phase 12 — Documentation done (README, architecture, OpenAPI export, 8 screenshots); GitHub repo NOT created or pushed (you asked me not to push)
+- [x] Phase 13 — Interview preparation (`docs/phase-13-interview-prep.md`: 50 questions + resume)
 
 ## Final deliverables
 - [ ] Source code
 - [x] Working frontend + backend (verified end to end locally)
 - [x] PostgreSQL database (16 tables, migrations, seed data)
-- [ ] API documentation
+- [x] API documentation (`/docs`, `docs/api/openapi.json`)
 - [x] Unit + integration + E2E tests (`scripts/test-all.sh --full`)
 - [x] Dockerized app (`docker compose up -d --build`)
 - [ ] GitHub repository
 - [ ] Live deployment
-- [ ] Architecture docs
-- [ ] ATS-friendly resume description
+- [x] Architecture docs (`docs/architecture.md`)
+- [x] ATS-friendly resume description (end of `docs/phase-13-interview-prep.md`)
