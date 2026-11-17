@@ -26,6 +26,8 @@ os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 os.environ["ENVIRONMENT"] = "test"
 os.environ["BCRYPT_ROUNDS"] = "4"
 os.environ["LOG_LEVEL"] = "WARNING"
+# Separate Redis database for tests (db 15), wiped before each test.
+os.environ["REDIS_URL"] = "redis://localhost:6379/15"
 
 import pytest  # noqa: E402
 from alembic.config import Config  # noqa: E402
@@ -48,6 +50,16 @@ def migrated_database() -> Iterator[None]:
     cfg.set_main_option("sqlalchemy.url", TEST_DATABASE_URL.replace("%", "%%"))
     cfg.attributes["configure_logger"] = False  # keep pytest's logging setup
     command.upgrade(cfg, "head")
+    yield
+
+
+@pytest.fixture(autouse=True)
+def clean_redis() -> Iterator[None]:
+    """Cache entries, rate-limit counters and queued jobs must not leak between tests."""
+    from app.core.redis import get_redis, reset_breaker
+
+    reset_breaker()
+    get_redis().flushdb()
     yield
 
 

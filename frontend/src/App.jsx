@@ -4,6 +4,7 @@
  * Route groups are wrapped in <RequireAuth roles=[...]> so each role only reaches its
  * own pages. The backend enforces the same rules — the frontend guard is for UX only.
  */
+import { lazy } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { AuthProvider } from './auth/AuthContext'
@@ -15,16 +16,18 @@ import RestaurantPage from './pages/public/RestaurantPage'
 import LoginPage from './pages/public/LoginPage'
 import RegisterPage from './pages/public/RegisterPage'
 import NotFoundPage from './pages/public/NotFoundPage'
-import CartPage from './pages/customer/CartPage'
-import PaymentPage from './pages/customer/PaymentPage'
-import OrdersPage from './pages/customer/OrdersPage'
-import OrderDetailPage from './pages/customer/OrderDetailPage'
-import ComplaintsPage from './pages/customer/ComplaintsPage'
-import ProfilePage from './pages/customer/ProfilePage'
-import NotificationsPage from './pages/customer/NotificationsPage'
-import OwnerDashboard from './pages/owner/OwnerDashboard'
-import OwnerRestaurantPage from './pages/owner/OwnerRestaurantPage'
-import AdminPage from './pages/admin/AdminPage'
+// Code splitting: pages behind a login are separate JS chunks, downloaded only when
+// visited. A customer never downloads the owner dashboard or the admin console.
+const CartPage = lazy(() => import('./pages/customer/CartPage'))
+const PaymentPage = lazy(() => import('./pages/customer/PaymentPage'))
+const OrdersPage = lazy(() => import('./pages/customer/OrdersPage'))
+const OrderDetailPage = lazy(() => import('./pages/customer/OrderDetailPage'))
+const ComplaintsPage = lazy(() => import('./pages/customer/ComplaintsPage'))
+const ProfilePage = lazy(() => import('./pages/customer/ProfilePage'))
+const NotificationsPage = lazy(() => import('./pages/customer/NotificationsPage'))
+const OwnerDashboard = lazy(() => import('./pages/owner/OwnerDashboard'))
+const OwnerRestaurantPage = lazy(() => import('./pages/owner/OwnerRestaurantPage'))
+const AdminPage = lazy(() => import('./pages/admin/AdminPage'))
 
 export function createQueryClient() {
   return new QueryClient({

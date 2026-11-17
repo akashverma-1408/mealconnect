@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exceptions import ConflictError, ForbiddenError, UnauthorizedError
+from app.core.jobs import enqueue_after_commit
 from app.core.security import (
     DUMMY_PASSWORD_HASH,
     InvalidTokenError,
@@ -45,6 +46,8 @@ def register_user(db: Session, data: RegisterRequest) -> User:
     )
     db.add(user)
     try:
+        db.flush()  # assigns user.id so the welcome job can reference it
+        enqueue_after_commit(db, "welcome_email", {"user_id": user.id})
         db.commit()
     except IntegrityError as exc:
         # Two simultaneous sign-ups with the same email: the UNIQUE constraint is the

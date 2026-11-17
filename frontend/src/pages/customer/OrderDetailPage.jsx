@@ -7,6 +7,8 @@ import { ErrorBox, Field, Modal, QueryState, StatusBadge } from '../../component
 import { dateTime, errorMessage, money, ORDER_FLOW, statusLabel } from '../../utils/format'
 
 const ACTIVE = ['PLACED', 'ACCEPTED', 'PREPARING', 'OUT_FOR_DELIVERY']
+// Also poll (faster) while awaiting a gateway webhook, so PLACED shows up by itself.
+const POLL_MS = { PENDING_PAYMENT: 3_000 }
 
 export default function OrderDetailPage() {
   const { id } = useParams()
@@ -19,7 +21,7 @@ export default function OrderDetailPage() {
     queryKey: ['order', id],
     queryFn: () => orderApi.get(id),
     // Live tracking: poll every 10 s while the order is moving, stop when it is final.
-    refetchInterval: (q) => (ACTIVE.includes(q.state.data?.status) ? 10_000 : false),
+    refetchInterval: (q) => POLL_MS[q.state.data?.status] ?? (ACTIVE.includes(q.state.data?.status) ? 10_000 : false),
   })
 
   // Each status change also creates a notification: refresh the bell badge when it moves.

@@ -8,6 +8,7 @@ from sqlalchemy import Select, delete, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
+from app.core.jobs import enqueue_after_commit
 from app.models.order import CartItem, Order, OrderItem, OrderStatus, OrderStatusHistory
 from app.models.payment import PaymentStatus
 from app.models.restaurant import Restaurant, RestaurantStatus
@@ -88,6 +89,9 @@ def transition(
     )  # fmt: skip
     previous = order.status
     order.status = to
+
+    # E-mail goes through the background worker, and only if this transaction commits.
+    enqueue_after_commit(db, "order_status_email", {"order_id": order.id, "status": to.value})
 
     title, body = CUSTOMER_MESSAGES[to]
     if not (to == S.CANCELLED and actor == "customer"):

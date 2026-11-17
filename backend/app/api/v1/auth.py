@@ -3,9 +3,11 @@
 Routers stay thin: parse input (schemas), call a service, return a schema.
 """
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Request, Response, status
 
 from app.api.deps import CurrentUser, DbSession
+from app.core.config import settings
+from app.core.rate_limit import client_ip, enforce
 from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
@@ -25,9 +27,10 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
     summary="Create a customer or restaurant-owner account",
-    responses=errors(409, 422),
+    responses=errors(409, 422, 429),
 )
-def register(data: RegisterRequest, db: DbSession) -> UserRead:
+def register(data: RegisterRequest, request: Request, db: DbSession) -> UserRead:
+    enforce(f"register:{client_ip(request.scope)}", settings.RATE_LIMIT_REGISTER)
     user = auth_service.register_user(db, data)
     return UserRead.model_validate(user)
 
@@ -36,9 +39,15 @@ def register(data: RegisterRequest, db: DbSession) -> UserRead:
     "/login",
     response_model=LoginResponse,
     summary="Exchange email + password for an access/refresh token pair",
-    responses=errors(401, 403, 422),
+    responses=errors(401, 403, 422, 429),
 )
-def login(data: LoginRequest, db: DbSession) -> LoginResponse:
+def login(data: LoginRequest, request: Request, db: DbSession) -> LoginResponse:
+    # Per IP + email: slows down password guessing against one account (AUTH-8).
+    enforce(
+        f"login:{client_ip(request.scope)}:{data.email}",
+        settings.RATE_LIMIT_LOGIN,
+        "Too many login attempts",
+    )
     user = auth_service.authenticate(db, data.email, data.password)
     tokens = auth_service.issue_tokens(db, user)
     return LoginResponse(**tokens.model_dump(), user=UserRead.model_validate(user))

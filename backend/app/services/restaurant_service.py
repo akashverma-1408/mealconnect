@@ -7,6 +7,7 @@ from sqlalchemy import Select, delete, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.cache import invalidate_catalogue
 from app.core.exceptions import BadRequestError, ConflictError, NotFoundError
 from app.models.order import CartItem
 from app.models.restaurant import MenuCategory, MenuItem, Restaurant, RestaurantStatus
@@ -220,6 +221,7 @@ def update_restaurant(
     if (restaurant.opens_at is None) != (restaurant.closes_at is None):
         raise BadRequestError("opens_at and closes_at must be set together", code="INVALID_HOURS")
     db.commit()
+    invalidate_catalogue(restaurant_id)
     db.refresh(restaurant)
     return restaurant
 
@@ -268,6 +270,7 @@ def create_category(
     category = MenuCategory(restaurant_id=restaurant_id, **data.model_dump())
     db.add(category)
     _commit_unique_category(db)
+    invalidate_catalogue(restaurant_id)
     db.refresh(category)
     return category
 
@@ -281,6 +284,7 @@ def update_category(
         if value is not None:
             setattr(category, field, value)
     _commit_unique_category(db)
+    invalidate_catalogue(restaurant_id)
     db.refresh(category)
     return category
 
@@ -289,6 +293,7 @@ def delete_category(db: Session, owner: User, restaurant_id: int, category_id: i
     get_owned(db, owner, restaurant_id)
     db.delete(_get_category(db, restaurant_id, category_id))
     db.commit()  # its items become uncategorized (FK ON DELETE SET NULL)
+    invalidate_catalogue(restaurant_id)
 
 
 # ================================================================== owner: menu items
@@ -323,6 +328,7 @@ def create_item(db: Session, owner: User, restaurant_id: int, data: MenuItemCrea
     item = MenuItem(restaurant_id=restaurant_id, **data.model_dump())
     db.add(item)
     db.commit()
+    invalidate_catalogue(restaurant_id)
     db.refresh(item)
     return item
 
@@ -340,6 +346,7 @@ def update_item(
             raise BadRequestError(f"{field} cannot be empty", code="FIELD_REQUIRED")
         setattr(item, field, value)
     db.commit()
+    invalidate_catalogue(restaurant_id)
     db.refresh(item)
     return item
 
@@ -351,6 +358,7 @@ def set_item_availability(
     item = _get_item(db, restaurant_id, item_id)
     item.is_available = is_available
     db.commit()
+    invalidate_catalogue(restaurant_id)
     db.refresh(item)
     return item
 
@@ -363,3 +371,4 @@ def delete_item(db: Session, owner: User, restaurant_id: int, item_id: int) -> N
     item.is_available = False
     db.execute(delete(CartItem).where(CartItem.menu_item_id == item.id))  # drop from carts
     db.commit()
+    invalidate_catalogue(restaurant_id)

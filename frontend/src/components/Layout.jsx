@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthContext'
 import { cartApi, notificationApi } from '../api/endpoints'
+import { Spinner } from './ui'
 
 const LINKS = {
   guest: [{ to: '/', label: 'Restaurants', end: true }],
@@ -82,7 +83,10 @@ export default function Layout() {
         </div>
       </header>
       <main id="main" className="container main">
-        <Outlet />
+        {/* Lazy-loaded pages show a spinner while their chunk downloads. */}
+        <Suspense fallback={<Spinner label="Loading page" />}>
+          <Outlet />
+        </Suspense>
       </main>
       <footer className="footer">
         <div className="container muted">© {new Date().getFullYear()} MealConnect · Demo project · Payments run in sandbox mode</div>

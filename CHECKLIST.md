@@ -18,7 +18,7 @@
 - [x] Phase 5 — Database + domain APIs (`docs/phase-05-database-and-domain-apis.md`; 16 tables, 69 endpoints, 99 tests, seed data, smoke test)
 - [x] Phase 6 — Frontend (`docs/phase-06-frontend.md`; React 19 + Router 8 + TanStack Query, 24 tests)
 - [x] Phase 7 — Integration (`docs/phase-07-integration.md`; 3 workflows verified in browser, 4 bugs fixed)
-- [ ] Phase 8 — Advanced (Redis, notifications, payments, security, performance)
+- [x] Phase 8 — Advanced (`docs/phase-08-advanced-features.md`; cache −50% p95, rate limits, job worker, Razorpay test mode, 122 tests)
 - [ ] Phase 9 — Testing
 - [ ] Phase 10 — Docker
 - [ ] Phase 11 — AWS deployment

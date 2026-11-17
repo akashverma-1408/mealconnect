@@ -15,7 +15,8 @@ from app.api.v1 import api_router
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging
-from app.core.middleware import RequestContextMiddleware
+from app.core.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
+from app.core.rate_limit import RateLimitMiddleware
 from app.db.session import engine
 
 logger = logging.getLogger("app")
@@ -52,7 +53,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
         expose_headers=["X-Request-ID"],
     )
-    app.add_middleware(RequestContextMiddleware)
+    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RequestContextMiddleware)  # outermost: every response gets an ID
 
     register_exception_handlers(app)
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)

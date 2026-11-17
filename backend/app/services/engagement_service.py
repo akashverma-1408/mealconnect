@@ -6,6 +6,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.cache import invalidate_catalogue
 from app.core.exceptions import BadRequestError, ConflictError, NotFoundError
 from app.models.engagement import Complaint, ComplaintStatus, Notification, Review
 from app.models.order import Order, OrderStatus
@@ -68,6 +69,7 @@ def create_review(db: Session, user: User, order_id: int, data: ReviewCreate) ->
     except IntegrityError as exc:
         db.rollback()
         raise ConflictError("You already reviewed this order", code="ALREADY_REVIEWED") from exc
+    invalidate_catalogue(restaurant.id)  # rating changed
     db.refresh(review)
     return _review_read(review)
 

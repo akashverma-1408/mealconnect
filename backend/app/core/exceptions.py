@@ -66,6 +66,18 @@ class NotFoundError(AppError):
     message = "Resource not found"
 
 
+class TooManyRequestsError(AppError):
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    code = "RATE_LIMITED"
+    message = "Too many requests"
+
+
+class GatewayUnavailableError(AppError):
+    status_code = status.HTTP_502_BAD_GATEWAY
+    code = "GATEWAY_UNAVAILABLE"
+    message = "An upstream service is unavailable"
+
+
 class ConflictError(AppError):
     status_code = status.HTTP_409_CONFLICT
     code = "CONFLICT"

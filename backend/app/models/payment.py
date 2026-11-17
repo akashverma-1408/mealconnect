@@ -28,7 +28,10 @@ class Payment(IdMixin, TimestampMixin, Base):
         BigInteger, ForeignKey("orders.id", ondelete="CASCADE"), unique=True, nullable=False
     )
     provider: Mapped[str] = mapped_column(String(30), nullable=False)
+    # Gateway-side id of the checkout/order we created (Razorpay "order_...").
     provider_payment_id: Mapped[str | None] = mapped_column(String(100), unique=True)
+    # Gateway id of the actual successful charge (Razorpay "pay_..."), needed for refunds.
+    provider_charge_id: Mapped[str | None] = mapped_column(String(100))
     amount: Mapped[Decimal] = mapped_column(MONEY, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default="INR")
     status: Mapped[PaymentStatus] = mapped_column(

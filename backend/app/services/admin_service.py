@@ -6,6 +6,7 @@ from decimal import Decimal
 from sqlalchemy import Date, cast, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.cache import invalidate_catalogue
 from app.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
 from app.models.engagement import AuditLog, Complaint
 from app.models.order import Order, OrderItem, OrderStatus
@@ -114,6 +115,7 @@ def set_restaurant_status(
     audit(db, admin.id, f"restaurant.{status.value}", "restaurant", restaurant.id,
           {"from": previous.value, "to": status.value, "reason": reason})  # fmt: skip
     db.commit()
+    invalidate_catalogue(restaurant.id)  # approve/suspend changes what customers can see
     db.refresh(restaurant)
     return restaurant
 

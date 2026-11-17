@@ -9,3 +9,4 @@ email-validator==2.4.0      # EmailStr validation
 PyJWT==2.15.1               # JSON Web Tokens
 bcrypt==5.0.0               # password hashing
 redis==8.1.0                # Redis client
+httpx==0.28.1               # HTTP client for payment gateway APIs

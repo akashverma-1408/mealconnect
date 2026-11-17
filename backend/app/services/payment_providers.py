@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal, Protocol
 
+import httpx
+
 from app.core.config import settings
 
 EventType = Literal["payment.succeeded", "payment.failed"]
@@ -28,6 +30,7 @@ class WebhookEvent:
     provider_payment_id: str
     amount: Decimal
     raw: dict
+    charge_id: str | None = None  # the gateway's id for the actual charge, if it sends one
 
 
 class InvalidSignatureError(Exception):
@@ -43,7 +46,7 @@ class PaymentProvider(Protocol):
     def parse_webhook(self, body: bytes, headers: dict[str, str]) -> WebhookEvent:
         """Verify the signature and parse the event, or raise InvalidSignatureError."""
 
-    def refund(self, provider_payment_id: str, amount: Decimal) -> str:
+    def refund(self, provider_payment_id: str, charge_id: str | None, amount: Decimal) -> str:
         """Refund a payment; return the provider's refund id."""
 
 
@@ -100,11 +103,96 @@ class MockPaymentProvider:
         ).encode()
         return body, {self.SIGNATURE_HEADER: sign(body, self.secret)}
 
-    def refund(self, provider_payment_id: str, amount: Decimal) -> str:
+    def refund(self, provider_payment_id: str, charge_id: str | None, amount: Decimal) -> str:
         return f"mock_ref_{uuid.uuid4().hex[:20]}"
 
 
-def get_provider() -> MockPaymentProvider:
+class PaymentGatewayError(Exception):
+    """The gateway could not be reached or refused the request."""
+
+
+class RazorpayProvider:
+    """Razorpay in TEST MODE (https://razorpay.com/docs/payments/).
+
+    Flow: we create a Razorpay Order (server-side, amount in paise) -> the browser opens
+    Razorpay Checkout with that order id -> Razorpay calls our webhook with
+    `payment.captured` / `payment.failed`, signed with HMAC-SHA256(webhook secret, raw body)
+    in the X-Razorpay-Signature header.
+    """
+
+    name = "razorpay"
+    SIGNATURE_HEADER = "x-razorpay-signature"
+    EVENT_ID_HEADER = "x-razorpay-event-id"
+    EVENTS = {"payment.captured": "payment.succeeded", "payment.failed": "payment.failed"}
+
+    def __init__(self, key_id: str, key_secret: str, webhook_secret: str, api_url: str) -> None:
+        self.key_id = key_id
+        self.auth = (key_id, key_secret)  # HTTP Basic auth, as Razorpay requires
+        self.webhook_secret = webhook_secret
+        self.api_url = api_url.rstrip("/")
+
+    def _post(self, path: str, body: dict) -> dict:
+        try:
+            res = httpx.post(f"{self.api_url}{path}", json=body, auth=self.auth, timeout=10)
+            res.raise_for_status()
+            return res.json()
+        except httpx.HTTPError as exc:
+            raise PaymentGatewayError(f"Razorpay request failed: {exc}") from exc
+
+    @staticmethod
+    def to_paise(amount: Decimal) -> int:
+        return int((amount * 100).to_integral_value())
+
+    def create_payment(self, amount: Decimal, currency: str, reference: str) -> tuple[str, dict]:
+        order = self._post(
+            "/orders",
+            {"amount": self.to_paise(amount), "currency": currency, "receipt": reference},
+        )
+        return order["id"], {
+            "provider": self.name,
+            "key_id": self.key_id,  # public key, safe for the browser
+            "order_id": order["id"],
+            "amount": order["amount"],
+            "currency": currency,
+            "name": "MealConnect",
+            "description": reference.replace("_", " #"),
+        }
+
+    def parse_webhook(self, body: bytes, headers: dict[str, str]) -> WebhookEvent:
+        received = headers.get(self.SIGNATURE_HEADER, "")
+        if not received or not hmac.compare_digest(received, sign(body, self.webhook_secret)):
+            raise InvalidSignatureError("Invalid webhook signature")
+        try:
+            data = json.loads(body)
+            entity = data["payload"]["payment"]["entity"]
+            return WebhookEvent(
+                event_id=headers.get(self.EVENT_ID_HEADER) or f"{data['event']}:{entity['id']}",
+                type=self.EVENTS.get(data["event"], data["event"]),
+                provider_payment_id=entity["order_id"],
+                amount=Decimal(entity["amount"]) / 100,
+                raw=data,
+                charge_id=entity["id"],
+            )
+        except (ValueError, KeyError, TypeError) as exc:
+            raise InvalidSignatureError("Malformed webhook payload") from exc
+
+    def refund(self, provider_payment_id: str, charge_id: str | None, amount: Decimal) -> str:
+        if not charge_id:
+            raise PaymentGatewayError("Cannot refund: no Razorpay payment id recorded")
+        refund = self._post(f"/payments/{charge_id}/refund", {"amount": self.to_paise(amount)})
+        return refund["id"]
+
+
+def get_provider() -> MockPaymentProvider | RazorpayProvider:
     if settings.PAYMENT_PROVIDER == "mock":
         return MockPaymentProvider(settings.PAYMENT_WEBHOOK_SECRET)
+    if settings.PAYMENT_PROVIDER == "razorpay":
+        if not (settings.RAZORPAY_KEY_ID and settings.RAZORPAY_KEY_SECRET):
+            raise RuntimeError("RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be set")
+        return RazorpayProvider(
+            settings.RAZORPAY_KEY_ID,
+            settings.RAZORPAY_KEY_SECRET,
+            settings.PAYMENT_WEBHOOK_SECRET,
+            settings.RAZORPAY_API_URL,
+        )
     raise RuntimeError(f"Unknown payment provider {settings.PAYMENT_PROVIDER}")

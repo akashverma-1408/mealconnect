@@ -41,11 +41,27 @@ class Settings(BaseSettings):
     # Cost factor: each +1 doubles hashing time. 12 ≈ 0.2 s (slow for attackers);
     # the test suite lowers it to 4 so hundreds of hashes stay fast.
     BCRYPT_ROUNDS: int = 12
+    # --- Caching, rate limiting, background jobs ---
+    CACHE_ENABLED: bool = True
+    CACHE_TTL_SECONDS: int = 120  # restaurant lists / search
+    MENU_CACHE_TTL_SECONDS: int = 300
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_DEFAULT: str = "300/minute"  # per client IP, every API route
+    RATE_LIMIT_LOGIN: str = "5/minute"  # per IP + email
+    RATE_LIMIT_REGISTER: str = "10/hour"  # per IP
+    # Proxies in front of the API (Nginx/ALB) whose X-Forwarded-For we trust.
+    TRUSTED_PROXY_COUNT: int = 0
+    EMAIL_BACKEND: Literal["console"] = "console"  # Phase 11 can add "ses"
+
     # --- Payments ---
     # "mock" = built-in sandbox gateway (signed webhooks, no external account needed).
     # Phase 8 adds a real provider in test mode behind the same interface.
-    PAYMENT_PROVIDER: Literal["mock"] = "mock"
+    PAYMENT_PROVIDER: Literal["mock", "razorpay"] = "mock"
     PAYMENT_WEBHOOK_SECRET: str
+    # Razorpay test-mode keys (Dashboard -> Settings -> API Keys, "Test Mode").
+    RAZORPAY_KEY_ID: str | None = None
+    RAZORPAY_KEY_SECRET: str | None = None
+    RAZORPAY_API_URL: str = "https://api.razorpay.com/v1"
     CURRENCY: str = "INR"
 
     # Comma-separated list, e.g. "http://localhost:5173,https://mealconnect.example.com"

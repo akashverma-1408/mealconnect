@@ -8,7 +8,13 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.exceptions import BadRequestError, ConflictError, NotFoundError
+from app.core.exceptions import (
+    BadRequestError,
+    ConflictError,
+    GatewayUnavailableError,
+    NotFoundError,
+)
+from app.core.jobs import enqueue_after_commit
 from app.models.order import Order, OrderStatus
 from app.models.payment import Payment, PaymentEvent, PaymentStatus
 from app.models.user import User
@@ -17,6 +23,7 @@ from app.services import order_service
 from app.services.payment_providers import (
     EventType,
     InvalidSignatureError,
+    PaymentGatewayError,
     WebhookEvent,
     get_provider,
 )
@@ -49,9 +56,13 @@ def create_checkout(db: Session, user: User, order_id: int) -> CheckoutResponse:
         raise ConflictError("Order is already paid", code="ALREADY_PAID")
 
     # A new gateway payment for every attempt (retry after failure is allowed).
-    provider_payment_id, checkout = provider.create_payment(
-        order.total, settings.CURRENCY, reference=f"order_{order.id}"
-    )
+    try:
+        provider_payment_id, checkout = provider.create_payment(
+            order.total, settings.CURRENCY, reference=f"order_{order.id}"
+        )
+    except PaymentGatewayError as exc:
+        logger.error("payment gateway error", extra={"order_id": order.id}, exc_info=True)
+        raise GatewayUnavailableError("Payment gateway unavailable, please retry") from exc
     payment.provider_payment_id = provider_payment_id
     payment.status = PaymentStatus.PENDING
     payment.failure_reason = None
@@ -120,6 +131,7 @@ def _apply_event(db: Session, payment: Payment, event: WebhookEvent) -> None:
 
     payment.status = PaymentStatus.SUCCEEDED
     payment.failure_reason = None
+    payment.provider_charge_id = event.charge_id
     order = db.scalar(select(Order).where(Order.id == payment.order_id).with_for_update())
     if order.status == OrderStatus.PENDING_PAYMENT:
         order_service.transition(db, order, OrderStatus.PLACED, "system", None, "Payment received")
@@ -130,14 +142,42 @@ def _apply_event(db: Session, payment: Payment, event: WebhookEvent) -> None:
 
 
 def refund(db: Session, payment: Payment) -> None:
-    """Refund a successful payment (sandbox: completes immediately). Caller commits."""
+    """Refund a successful payment. Caller commits.
+
+    If the gateway is unreachable, the order change still goes through and the refund
+    is retried by the background worker (job "refund_payment").
+    """
     if payment.status != PaymentStatus.SUCCEEDED:
         return
     provider = get_provider()
-    payment.provider_refund_id = provider.refund(payment.provider_payment_id, payment.amount)
+    try:
+        payment.provider_refund_id = provider.refund(
+            payment.provider_payment_id, payment.provider_charge_id, payment.amount
+        )
+    except PaymentGatewayError:
+        logger.error("refund failed; queued for retry", extra={"payment_id": payment.id})
+        payment.failure_reason = "Refund pending: gateway unavailable"
+        enqueue_after_commit(db, "refund_payment", {"payment_id": payment.id})
+        return
     payment.status = PaymentStatus.REFUNDED
     payment.refunded_at = datetime.now(UTC)
+    payment.failure_reason = None
     logger.info("payment refunded", extra={"payment_id": payment.id})
+
+
+def retry_refund(db: Session, payment_id: int) -> None:
+    """Worker job: try a pending refund again (raises so the worker retries/dead-letters)."""
+    payment = db.get(Payment, payment_id, with_for_update=True)
+    if payment is None or payment.status != PaymentStatus.SUCCEEDED:
+        return  # already refunded (idempotent) or nothing to do
+    provider = get_provider()
+    payment.provider_refund_id = provider.refund(
+        payment.provider_payment_id, payment.provider_charge_id, payment.amount
+    )
+    payment.status = PaymentStatus.REFUNDED
+    payment.refunded_at = datetime.now(UTC)
+    payment.failure_reason = None
+    db.commit()
 
 
 def get_for_order(db: Session, user: User, order_id: int) -> Payment:
