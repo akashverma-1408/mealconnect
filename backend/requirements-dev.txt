@@ -1,0 +1,6 @@
+# Development & testing tools
+-r requirements.txt
+pytest==9.2.0
+pytest-cov==7.1.0
+httpx==0.28.1               # used by FastAPI's TestClient
+ruff==0.17.5                # linter + formatter

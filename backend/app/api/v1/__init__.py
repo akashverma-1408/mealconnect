@@ -1,0 +1,10 @@
+"""Collects every v1 router under one APIRouter mounted at /api/v1."""
+
+from fastapi import APIRouter
+
+from app.api.v1 import auth, health, users
+
+api_router = APIRouter()
+api_router.include_router(health.router)
+api_router.include_router(auth.router)
+api_router.include_router(users.router)
