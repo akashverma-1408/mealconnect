@@ -31,6 +31,7 @@ export default function PaymentPage() {
     onSuccess: async (_res, outcome) => {
       await queryClient.invalidateQueries({ queryKey: ['order', id] })
       queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
       if (outcome === 'success') {
         toast.success('Payment received! The restaurant has your order.')
         navigate(`/orders/${id}`, { replace: true })

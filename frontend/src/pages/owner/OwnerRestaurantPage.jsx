@@ -134,6 +134,7 @@ function OwnerOrderModal({ orderId, onClose }) {
     onSuccess: (o) => {
       queryClient.setQueryData(['owner', 'order', orderId], o)
       queryClient.invalidateQueries({ queryKey: ['owner', 'orders'] })
+      queryClient.invalidateQueries({ queryKey: ['owner', 'analytics'] })
       toast.success(`Order #${o.id}: ${statusLabel(o.status)}`)
     },
     onError: (e) => toast.error(errorMessage(e)),

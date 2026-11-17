@@ -50,17 +50,24 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const clearSession = useCallback(() => {
-    tokenStore.clear()
-    setUser(null)
-    queryClient.clear() // never show the previous user's cached data
-  }, [queryClient])
+  const [notice, setNotice] = useState(null) // why the session ended, if not by the user
+
+  const clearSession = useCallback(
+    (reason) => {
+      tokenStore.clear()
+      setUser(null)
+      setNotice(typeof reason === 'string' ? reason : null)
+      queryClient.clear() // never show the previous user's cached data
+    },
+    [queryClient],
+  )
 
   useEffect(() => {
     setSessionExpiredHandler(clearSession)
   }, [clearSession])
 
   const login = useCallback(async (email, password) => {
+    setNotice(null)
     const res = await authApi.login({ email, password })
     tokenStore.set(res)
     setUser(res.user)
@@ -79,14 +86,16 @@ export function AuthProvider({ children }) {
     const refresh = tokenStore.getRefresh()
     try {
       if (refresh) await authApi.logout(refresh)
+    } catch {
+      /* already invalid on the server: nothing else to do */
     } finally {
       clearSession()
     }
   }, [clearSession])
 
   const value = useMemo(
-    () => ({ user, setUser, loading, login, register, logout }),
-    [user, loading, login, register, logout],
+    () => ({ user, setUser, loading, login, register, logout, notice }),
+    [user, loading, login, register, logout, notice],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

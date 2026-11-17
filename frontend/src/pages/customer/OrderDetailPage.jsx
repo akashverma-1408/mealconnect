@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { complaintApi, orderApi } from '../../api/endpoints'
@@ -21,6 +21,12 @@ export default function OrderDetailPage() {
     // Live tracking: poll every 10 s while the order is moving, stop when it is final.
     refetchInterval: (q) => (ACTIVE.includes(q.state.data?.status) ? 10_000 : false),
   })
+
+  // Each status change also creates a notification: refresh the bell badge when it moves.
+  const status = order.data?.status
+  useEffect(() => {
+    if (status) queryClient.invalidateQueries({ queryKey: ['notifications'] })
+  }, [status, queryClient])
 
   const cancel = useMutation({
     mutationFn: () => orderApi.cancel(id, 'Cancelled by customer'),

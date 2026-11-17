@@ -35,8 +35,10 @@ export default function Layout() {
 
   async function handleLogout() {
     close()
-    await logout()
+    // Leave protected pages first; otherwise the route guard sees "no user" and
+    // redirects to /login before we get the chance to go home.
     navigate('/')
+    await logout()
   }
 
   return (

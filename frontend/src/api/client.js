@@ -60,18 +60,29 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-/** Exchange the stored refresh token for a new pair. Concurrent callers share one call. */
+const LOCK_NAME = 'mealconnect-token-refresh'
+
+/**
+ * Exchange the stored refresh token for a new pair.
+ *
+ * Two layers of protection against sending the same (single-use) token twice:
+ * 1. Inside this tab, concurrent callers share one promise.
+ * 2. Across tabs (and duplicate module copies after a hot reload), the Web Locks API
+ *    runs one refresh at a time, and the token is read INSIDE the lock — so if another
+ *    tab just rotated it, we use the new one instead of replaying the old one.
+ */
 export function refreshTokens() {
   if (!refreshPromise) {
-    const refresh_token = tokenStore.getRefresh()
-    refreshPromise = (
-      refresh_token
-        ? axios.post(`${API_BASE}/auth/refresh`, { refresh_token }).then((res) => {
-            tokenStore.set(res.data)
-            return res.data
-          })
-        : Promise.reject(new Error('No refresh token'))
-    ).finally(() => {
+    const run = () => {
+      const refresh_token = tokenStore.getRefresh()
+      if (!refresh_token) return Promise.reject(new Error('No refresh token'))
+      return axios.post(`${API_BASE}/auth/refresh`, { refresh_token }).then((res) => {
+        tokenStore.set(res.data)
+        return res.data
+      })
+    }
+    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined
+    refreshPromise = (locks?.request ? locks.request(LOCK_NAME, run) : run()).finally(() => {
       refreshPromise = null
     })
   }
@@ -84,6 +95,11 @@ api.interceptors.response.use(
     const original = error.config
     const status = error.response?.status
     const isAuthCall = original?.url?.startsWith('/auth/')
+    if (status === 403 && error.response?.data?.error?.code === 'ACCOUNT_SUSPENDED' && !isAuthCall) {
+      tokenStore.clear()
+      onSessionExpired('Your account has been suspended. Please contact support.')
+      return Promise.reject(error)
+    }
     if (status === 401 && original && !original._retried && !isAuthCall && tokenStore.getRefresh()) {
       original._retried = true
       try {

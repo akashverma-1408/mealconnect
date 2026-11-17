@@ -6,7 +6,7 @@ import { ErrorBox, Field } from '../../components/ui'
 import { errorMessage } from '../../utils/format'
 
 export default function LoginPage() {
-  const { user, login } = useAuth()
+  const { user, login, notice } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [form, setForm] = useState({ email: '', password: '' })
@@ -36,6 +36,7 @@ export default function LoginPage() {
     <div className="card auth-card">
       <h1>Welcome back</h1>
       <p className="muted">Log in to order food or manage your restaurant.</p>
+      {notice && !error && <div className="alert alert--warn" role="alert">{notice}</div>}
       <ErrorBox error={error} />
       <form className="form-grid" onSubmit={handleSubmit} noValidate>
         <Field label="Email" type="email" autoComplete="email" required value={form.email} onChange={set('email')} />
