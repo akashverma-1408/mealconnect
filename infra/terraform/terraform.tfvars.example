@@ -1,0 +1,25 @@
+# Copy to terraform.tfvars (git-ignored) and adjust.
+region      = "ap-south-1"   # Mumbai
+environment = "prod"
+
+# Cheapest sensible sizes; raise for real traffic.
+api_min_tasks     = 2
+api_max_tasks     = 4
+db_instance_class = "db.t4g.micro"
+db_multi_az       = false
+
+# Demo deployment: mock gateway with sandbox payments and public API docs.
+payment_provider         = "mock"
+sandbox_payments_enabled = true
+api_docs_enabled         = true
+# payment_provider = "razorpay"
+# razorpay_key_id  = "rzp_test_xxxxxxxx"
+
+# Optional custom domain (needs a Route 53 hosted zone you own):
+# domain_name     = "mealconnect.example.com"
+# route53_zone_id = "Z0123456789ABCDEFGHIJ"
+
+alert_email = ""   # e.g. you@example.com — confirm the subscription e-mail AWS sends
+
+# Throwaway environment? allow `destroy` to delete the database without a final snapshot.
+# deletion_protection = false
