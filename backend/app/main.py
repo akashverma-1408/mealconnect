@@ -39,9 +39,10 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description="Food ordering and restaurant management platform.",
         lifespan=lifespan,
-        # Hide interactive docs in production (the OpenAPI JSON can still be exported).
-        docs_url=None if settings.is_production else "/docs",
-        redoc_url=None if settings.is_production else "/redoc",
+        # Interactive docs are hidden in production unless API_DOCS_ENABLED=true.
+        docs_url="/docs" if settings.docs_enabled else None,
+        redoc_url="/redoc" if settings.docs_enabled else None,
+        openapi_url="/openapi.json" if settings.docs_enabled else None,
     )
 
     # Middleware: the last one added is the outermost (runs first).

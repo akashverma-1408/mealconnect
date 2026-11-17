@@ -177,7 +177,7 @@ def sandbox_pay(
     db: DbSession,
     outcome: Literal["success", "failure"] = "success",
 ) -> WebhookAck:
-    if settings.is_production or settings.PAYMENT_PROVIDER != "mock":
+    if not settings.sandbox_payments_enabled:
         raise NotFoundError("Not found")
     event = "payment.succeeded" if outcome == "success" else "payment.failed"
     return WebhookAck(status=payment_service.simulate_gateway(db, user, order_id, event))

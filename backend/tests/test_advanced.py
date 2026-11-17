@@ -200,3 +200,17 @@ def test_parse_rate(rate, expected):
 def test_worker_waits_on_an_empty_queue_without_socket_errors():
     """Regression: the worker's blocking wait must outlast its socket timeout."""
     assert process_one(get_worker_redis(), timeout=1) is False
+
+
+def test_sandbox_and_docs_switches(client, world, monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "SANDBOX_PAYMENTS_ENABLED", None)
+    assert settings.sandbox_payments_enabled is False and settings.docs_enabled is False
+    assert (
+        client.post(f"{API}/payments/sandbox/orders/1/pay", headers=world.customer_h).status_code
+        == 404
+    )
+    monkeypatch.setattr(settings, "SANDBOX_PAYMENTS_ENABLED", True)  # demo deployment
+    assert settings.sandbox_payments_enabled is True
+    monkeypatch.setattr(settings, "PAYMENT_PROVIDER", "razorpay")  # real gateway: never sandbox
+    assert settings.sandbox_payments_enabled is False

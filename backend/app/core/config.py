@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     LOG_LEVEL: str = "INFO"
     LOG_JSON: bool = True
+    # None = automatic (on outside production). Set true to show /docs on a demo deployment.
+    API_DOCS_ENABLED: bool | None = None
+    # Sandbox "pay" endpoint for the mock gateway. None = automatic (off in production).
+    SANDBOX_PAYMENTS_ENABLED: bool | None = None
 
     # --- Infrastructure ---
     DATABASE_URL: str
@@ -74,6 +78,20 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT == "production"
+
+    @property
+    def docs_enabled(self) -> bool:
+        return (
+            self.API_DOCS_ENABLED if self.API_DOCS_ENABLED is not None else not self.is_production
+        )
+
+    @property
+    def sandbox_payments_enabled(self) -> bool:
+        if self.PAYMENT_PROVIDER != "mock":
+            return False  # never fake payments when a real gateway is configured
+        if self.SANDBOX_PAYMENTS_ENABLED is not None:
+            return self.SANDBOX_PAYMENTS_ENABLED
+        return not self.is_production
 
 
 @lru_cache

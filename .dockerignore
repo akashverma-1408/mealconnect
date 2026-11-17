@@ -1,0 +1,15 @@
+# Repo-root build context (used by frontend/Dockerfile): keep it small and secret-free.
+**/node_modules
+**/.venv
+**/__pycache__
+**/.env
+**/.env.*
+!**/.env.example
+.git
+docs
+postman
+frontend/dist
+frontend/coverage
+frontend/playwright-report
+frontend/test-results
+backend/htmlcov

@@ -1,0 +1,12 @@
+# Never send secrets, virtualenvs, caches or tests into the image build context.
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/

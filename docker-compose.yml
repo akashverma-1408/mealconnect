@@ -1,0 +1,112 @@
+# MealConnect — the whole stack in containers.
+#   cp .env.docker.example .env      # then put real secrets in .env
+#   docker compose up -d --build
+#   docker compose run --rm api python -m app.seed --reset     # optional demo data
+#   open http://localhost:8080
+#
+#   browser ──:8080──► web (Nginx: React files + /api proxy) ──► api (FastAPI ×2 workers)
+#                                                                 ├─► postgres
+#                                                                 └─► redis ◄── worker
+
+name: mealconnect
+
+x-backend-env: &backend-env
+  ENVIRONMENT: production
+  DATABASE_URL: postgresql+psycopg://mealconnect:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/mealconnect
+  REDIS_URL: redis://redis:6379/0
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set in .env}
+  PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:?set in .env}
+  PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-mock}
+  RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+  RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+  SANDBOX_PAYMENTS_ENABLED: ${SANDBOX_PAYMENTS_ENABLED:-true}
+  API_DOCS_ENABLED: ${API_DOCS_ENABLED:-true}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+  TRUSTED_PROXY_COUNT: "1"          # Nginx is the one proxy in front of the API
+  LOG_LEVEL: INFO
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: mealconnect
+      POSTGRES_USER: mealconnect
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data      # data survives container restarts
+    ports:
+      - "127.0.0.1:5433:5432"                # 5433 on the host: the Homebrew Postgres keeps 5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mealconnect -d mealconnect"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    # Persist the job queue (append-only file); cap memory and evict only expiring keys
+    # (cache entries + rate-limit counters) so queued jobs are never evicted.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "volatile-lru"]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "127.0.0.1:6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # One-off job: apply database migrations, then exit. The API waits for it.
+  migrate:
+    build: ./backend
+    image: mealconnect-api:latest
+    command: ["alembic", "upgrade", "head"]
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: mealconnect-api:latest
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    expose: ["8000"]                         # reachable only inside the Docker network
+    restart: unless-stopped
+
+  worker:
+    image: mealconnect-api:latest
+    command: ["python", "-m", "app.worker"]
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      disable: true                          # no HTTP server in the worker
+    stop_grace_period: 20s                   # let the current job finish on shutdown
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: mealconnect-web:latest
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

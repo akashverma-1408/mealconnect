@@ -20,7 +20,7 @@
 - [x] Phase 7 — Integration (`docs/phase-07-integration.md`; 3 workflows verified in browser, 4 bugs fixed)
 - [x] Phase 8 — Advanced (`docs/phase-08-advanced-features.md`; cache −50% p95, rate limits, job worker, Razorpay test mode, 122 tests)
 - [x] Phase 9 — Testing (`docs/phase-09-testing.md`; 151 backend tests @92% cov, 33 frontend, Playwright E2E, Postman/Newman)
-- [ ] Phase 10 — Docker
+- [x] Phase 10 — Docker + CI (`docs/phase-10-docker.md`; 6-service Compose stack verified with smoke, Newman, Playwright; GitHub Actions workflow)
 - [ ] Phase 11 — AWS deployment
 - [ ] Phase 12 — GitHub + documentation
 - [ ] Phase 13 — Interview preparation
@@ -31,7 +31,7 @@
 - [x] PostgreSQL database (16 tables, migrations, seed data)
 - [ ] API documentation
 - [x] Unit + integration + E2E tests (`scripts/test-all.sh --full`)
-- [ ] Dockerized app
+- [x] Dockerized app (`docker compose up -d --build`)
 - [ ] GitHub repository
 - [ ] Live deployment
 - [ ] Architecture docs
