@@ -53,12 +53,66 @@ export function setSessionExpiredHandler(fn) {
   onSessionExpired = fn
 }
 
-export const api = axios.create({ baseURL: API_BASE, timeout: 15000 })
+// 70 s: a free-tier API host that was asleep needs about a minute to wake up.
+export const api = axios.create({ baseURL: API_BASE, timeout: 70000 })
+
+// ---- "server is waking up" indicator -------------------------------------------------
+// If a request is still pending after SLOW_AFTER_MS we tell the UI, which shows a banner
+// instead of a silent spinner. Subscribers are notified only when the answer changes.
+const SLOW_AFTER_MS = 4000
+let slowCount = 0
+const slowListeners = new Set()
+const notifySlow = () => slowListeners.forEach((fn) => fn())
+
+export const serverWaking = {
+  subscribe(fn) {
+    slowListeners.add(fn)
+    return () => slowListeners.delete(fn)
+  },
+  getSnapshot: () => slowCount > 0,
+}
+
+function beginTiming(config) {
+  config._slowTimer = setTimeout(() => {
+    config._slowTimer = null
+    config._slowCounted = true
+    slowCount += 1
+    notifySlow()
+  }, SLOW_AFTER_MS)
+}
+
+function endTiming(config) {
+  if (!config) return
+  clearTimeout(config._slowTimer)
+  config._slowTimer = null
+  if (config._slowCounted) {
+    config._slowCounted = false
+    slowCount -= 1
+    notifySlow()
+  }
+}
+
+/** Fire-and-forget request on page load so a sleeping API starts waking immediately. */
+export function warmUpApi() {
+  fetch(`${API_BASE}/health`, { cache: 'no-store' }).catch(() => {})
+}
 
 api.interceptors.request.use((config) => {
   if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`
+  beginTiming(config)
   return config
 })
+
+api.interceptors.response.use(
+  (response) => {
+    endTiming(response.config)
+    return response
+  },
+  (error) => {
+    endTiming(error.config)
+    return Promise.reject(error)
+  },
+)
 
 const LOCK_NAME = 'mealconnect-token-refresh'
 

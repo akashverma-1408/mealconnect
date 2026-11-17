@@ -13,8 +13,8 @@ from app.core.config import settings
 
 engine = create_engine(
     settings.DATABASE_URL,
-    pool_size=10,  # connections kept open
-    max_overflow=20,  # extra connections allowed under burst load
+    pool_size=settings.DB_POOL_SIZE,  # connections kept open
+    max_overflow=settings.DB_MAX_OVERFLOW,  # extra connections allowed under burst load
     pool_pre_ping=True,  # test a connection before using it (survives DB restarts)
     pool_recycle=1800,  # replace connections older than 30 min
     # Every session works in UTC, so timestamps are identical on a laptop in India

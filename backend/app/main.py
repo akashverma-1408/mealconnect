@@ -26,7 +26,14 @@ logger = logging.getLogger("app")
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Code before `yield` runs at startup, code after it at shutdown."""
     logger.info("starting %s", settings.APP_NAME, extra={"environment": settings.ENVIRONMENT})
+    worker = None
+    if settings.EMBEDDED_WORKER:
+        from app.worker import start_embedded_worker
+
+        worker = start_embedded_worker()
     yield
+    if worker is not None:
+        worker[1].set()  # ask the loop to stop; it is a daemon thread, so exit is never blocked
     engine.dispose()  # close pooled DB connections cleanly
     logger.info("shutdown complete")
 

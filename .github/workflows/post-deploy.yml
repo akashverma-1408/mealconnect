@@ -1,0 +1,45 @@
+# After CI succeeds on main, wait for the free-tier hosts to finish deploying and check them.
+# Needs two repository VARIABLES (Settings -> Secrets and variables -> Actions -> Variables):
+#   API_URL  e.g. https://mealconnect-api.onrender.com
+#   WEB_URL  e.g. https://mealconnect.vercel.app
+# Without them the job exits quietly (nothing is invented or guessed).
+name: Post-deploy check
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      API_URL: ${{ vars.API_URL }}
+      WEB_URL: ${{ vars.WEB_URL }}
+    steps:
+      - name: Skip when URLs are not configured
+        if: env.API_URL == '' || env.WEB_URL == ''
+        run: echo "::notice::API_URL / WEB_URL repository variables are not set; skipping."
+      - name: Wait for the API (cold start + deploy can take several minutes)
+        if: env.API_URL != '' && env.WEB_URL != ''
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 "$API_URL/api/v1/health/ready" || true)
+            echo "attempt $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 20
+          done
+          echo "API did not become ready"; exit 1
+      - name: Check the frontend and CORS
+        if: env.API_URL != '' && env.WEB_URL != ''
+        run: |
+          curl -fsS --max-time 30 "$WEB_URL" | grep -qi '<div id="root">' || { echo "frontend page missing"; exit 1; }
+          hdr=$(curl -sS --max-time 30 -D - -o /dev/null -H "Origin: $WEB_URL" "$API_URL/api/v1/restaurants" | tr -d '\r')
+          echo "$hdr" | grep -i "access-control-allow-origin: $WEB_URL" || { echo "CORS does not allow $WEB_URL"; exit 1; }

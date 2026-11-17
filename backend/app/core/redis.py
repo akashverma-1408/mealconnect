@@ -28,8 +28,8 @@ def get_redis() -> redis.Redis:
     return redis.Redis.from_url(
         settings.REDIS_URL,
         decode_responses=True,  # str in, str out
-        socket_connect_timeout=0.5,  # never let a slow Redis stall a request for long
-        socket_timeout=0.5,
+        socket_connect_timeout=settings.REDIS_SOCKET_TIMEOUT,  # slow Redis must not stall requests
+        socket_timeout=settings.REDIS_SOCKET_TIMEOUT,
         retry=Retry(NoBackoff(), 0),  # fail fast; the breaker below decides what to do
         health_check_interval=30,
     )

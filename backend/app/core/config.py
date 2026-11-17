@@ -9,6 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -36,6 +37,17 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     TEST_DATABASE_URL: str | None = None
     REDIS_URL: str = "redis://localhost:6379/0"
+    # Connection pool per process. Small free-tier databases (e.g. Neon) allow few
+    # connections, so hosted deployments lower these.
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    # Redis socket timeout (s). Raise it for a managed Redis in another region.
+    REDIS_SOCKET_TIMEOUT: float = 0.5
+    # Run the background worker inside the API process (for hosts without worker
+    # services, e.g. Render's free tier). WORKER_POLL_SECONDS is how long the worker waits
+    # per Redis call; larger values mean fewer Redis commands (free Redis plans cap them).
+    EMBEDDED_WORKER: bool = False
+    WORKER_POLL_SECONDS: int = 2
 
     # --- Security ---
     JWT_SECRET_KEY: str
@@ -70,6 +82,25 @@ class Settings(BaseSettings):
 
     # Comma-separated list, e.g. "http://localhost:5173,https://mealconnect.example.com"
     CORS_ORIGINS: str = "http://localhost:5173"
+
+    @field_validator("DATABASE_URL", "TEST_DATABASE_URL")
+    @classmethod
+    def _use_psycopg_driver(cls, value: str | None) -> str | None:
+        """Hosted databases (Neon, Render, Supabase) hand out plain `postgres://` or
+        `postgresql://` URLs; SQLAlchemy needs to be told to use the psycopg 3 driver."""
+        if value is None:
+            return value
+        for prefix in ("postgres://", "postgresql://"):
+            if value.startswith(prefix):
+                return "postgresql+psycopg://" + value[len(prefix) :]
+        return value
+
+    @field_validator("WORKER_POLL_SECONDS")
+    @classmethod
+    def _poll_within_socket_timeout(cls, value: int) -> int:
+        if not 1 <= value <= 25:  # the worker's Redis socket timeout is 30 s
+            raise ValueError("WORKER_POLL_SECONDS must be between 1 and 25")
+        return value
 
     @property
     def cors_origins_list(self) -> list[str]:

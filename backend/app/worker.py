@@ -10,6 +10,7 @@ import json
 import logging
 import signal
 import sys
+import threading
 import time
 from collections.abc import Callable
 from typing import Any
@@ -88,12 +89,34 @@ def recover_stuck_jobs(r: redis.Redis) -> int:
     return moved
 
 
+_blocking_supported = True
+
+
+def _take(r: redis.Redis, timeout: int) -> str | None:
+    """Move one job to `processing`, waiting up to `timeout` s for it to arrive.
+
+    Some managed Redis services reject blocking commands. Then we poll with the plain
+    LMOVE and sleep between polls: jobs start up to `timeout` s later, nothing is lost.
+    """
+    global _blocking_supported
+    if _blocking_supported:
+        try:
+            return r.blmove(QUEUE, PROCESSING, timeout, "RIGHT", "LEFT")
+        except redis.ResponseError:
+            _blocking_supported = False
+            logger.warning("this Redis rejects BLMOVE; falling back to polling")
+    raw = r.lmove(QUEUE, PROCESSING, "RIGHT", "LEFT")
+    if raw is None:
+        time.sleep(timeout)
+    return raw
+
+
 def process_one(r: redis.Redis, timeout: int = 5) -> bool:
     """Take one job (waiting up to `timeout` s) and run it. Returns False if none arrived.
 
     `r` must be the worker client (get_worker_redis): its socket timeout outlasts `timeout`.
     """
-    raw = r.blmove(QUEUE, PROCESSING, timeout, "RIGHT", "LEFT")
+    raw = _take(r, timeout)
     if raw is None:
         return False
     job = json.loads(raw)
@@ -120,27 +143,44 @@ def process_one(r: redis.Redis, timeout: int = 5) -> bool:
     return True
 
 
-def main() -> int:
-    setup_logging(settings.LOG_LEVEL, settings.LOG_JSON)
+def run_loop(stop: threading.Event, poll_seconds: int) -> None:
+    """Process jobs until `stop` is set. Shared by the worker process and the embedded worker."""
     r = get_worker_redis()
-    running = True
-
-    def stop(*_: Any) -> None:
-        nonlocal running
-        running = False
-        logger.info("shutdown requested; finishing current job")
-
-    signal.signal(signal.SIGTERM, stop)
-    signal.signal(signal.SIGINT, stop)
     recover_stuck_jobs(r)
     logger.info("worker started", extra={"queue": QUEUE})
-    while running:
+    while not stop.is_set():
         try:
-            process_one(r, timeout=2)
+            process_one(r, timeout=poll_seconds)
         except redis.RedisError:
             logger.error("redis unavailable, retrying", exc_info=True)
-            time.sleep(2)
+            stop.wait(2)
     logger.info("worker stopped")
+
+
+def start_embedded_worker() -> tuple[threading.Thread, threading.Event]:
+    """Run the worker loop in a background thread of the API process."""
+    stop = threading.Event()
+    thread = threading.Thread(
+        target=run_loop,
+        args=(stop, settings.WORKER_POLL_SECONDS),
+        name="embedded-worker",
+        daemon=True,
+    )
+    thread.start()
+    return thread, stop
+
+
+def main() -> int:
+    setup_logging(settings.LOG_LEVEL, settings.LOG_JSON)
+    stop = threading.Event()
+
+    def on_signal(*_: Any) -> None:
+        stop.set()
+        logger.info("shutdown requested; finishing current job")
+
+    signal.signal(signal.SIGTERM, on_signal)
+    signal.signal(signal.SIGINT, on_signal)
+    run_loop(stop, poll_seconds=2)
     return 0
 
 

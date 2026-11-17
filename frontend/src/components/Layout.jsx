@@ -1,8 +1,9 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useSyncExternalStore } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthContext'
 import { cartApi, notificationApi } from '../api/endpoints'
+import { serverWaking } from '../api/client'
 import { Spinner } from './ui'
 
 const LINKS = {
@@ -21,6 +22,7 @@ export default function Layout() {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const isCustomer = user?.role === 'customer'
+  const waking = useSyncExternalStore(serverWaking.subscribe, serverWaking.getSnapshot)
 
   // Shared react-query keys: any page that changes the cart invalidates ['cart'].
   const cart = useQuery({ queryKey: ['cart'], queryFn: cartApi.get, enabled: isCustomer })
@@ -45,6 +47,11 @@ export default function Layout() {
   return (
     <div className="app">
       <a href="#main" className="skip-link">Skip to content</a>
+      {waking && (
+        <div className="server-waking" role="status">
+          Waking up the server — the free demo host sleeps when idle. This can take up to a minute…
+        </div>
+      )}
       <header className="navbar">
         <div className="container navbar__inner">
           <Link to="/" className="brand" onClick={close}>

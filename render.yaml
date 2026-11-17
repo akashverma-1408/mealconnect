@@ -1,0 +1,61 @@
+# Render Blueprint: the FREE API host for MealConnect.
+# Render dashboard -> New -> Blueprint -> pick this repository. Values marked `sync: false`
+# are secrets: Render asks for them once on creation and never stores them in Git.
+#
+# Free-plan facts that shaped this file (checked 2026-11-17):
+#   - the service sleeps after 15 min without traffic; first request afterwards takes ~1 min
+#   - no background-worker service type -> the worker runs inside the API (EMBEDDED_WORKER)
+#   - one instance only -> a single uvicorn process
+services:
+  - type: web
+    name: mealconnect-api
+    runtime: python
+    plan: free
+    region: singapore            # keep Neon in the same region (AWS Singapore)
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Migrations run on every start (idempotent) so a deploy can never run new code on an old schema.
+    startCommand: >-
+      alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: checksPass   # deploy only after the GitHub Actions CI run succeeds
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_JSON
+        value: "true"
+      # --- secrets you paste in the Render form (see docs/deployment.md) ---
+      - key: DATABASE_URL        # Neon connection string
+        sync: false
+      - key: REDIS_URL           # Upstash "rediss://..." URL (leave empty to run without Redis)
+        sync: false
+      - key: CORS_ORIGINS        # your Vercel URL, e.g. https://mealconnect.vercel.app
+        sync: false
+      # --- generated once by Render ---
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: PAYMENT_WEBHOOK_SECRET
+        generateValue: true
+      # --- demo behaviour: built-in sandbox payments, public API docs ---
+      - key: PAYMENT_PROVIDER
+        value: mock
+      - key: SANDBOX_PAYMENTS_ENABLED
+        value: "true"
+      - key: API_DOCS_ENABLED
+        value: "true"
+      # --- free-tier tuning ---
+      - key: EMBEDDED_WORKER
+        value: "true"
+      - key: WORKER_POLL_SECONDS
+        value: "20"             # few Redis commands: free Redis plans cap monthly usage
+      - key: DB_POOL_SIZE
+        value: "3"
+      - key: DB_MAX_OVERFLOW
+        value: "2"
+      - key: REDIS_SOCKET_TIMEOUT
+        value: "2"
+      - key: TRUSTED_PROXY_COUNT
+        value: "1"

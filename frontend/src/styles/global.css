@@ -279,3 +279,13 @@ th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; color
 .page-header p { margin: 0; }
 .demo-accounts { font-size: 0.85rem; }
 .demo-accounts code { background: var(--brand-soft); padding: 1px 6px; border-radius: 6px; }
+
+/* Shown while the (free-tier) API host is waking up */
+.server-waking {
+  background: var(--warn-soft);
+  color: var(--warn);
+  text-align: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
