@@ -11,7 +11,7 @@ services:
     name: mealconnect-api
     runtime: python
     plan: free
-    region: singapore            # keep Neon in the same region (AWS Singapore)
+    region: ohio                 # same region as the Neon database (AWS us-east-2, Ohio)
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     # Migrations run on every start (idempotent) so a deploy can never run new code on an old schema.

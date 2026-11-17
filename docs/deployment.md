@@ -26,11 +26,11 @@ Do **not** use Render's free Postgres: it is deleted after 30 days.
 
 ## 1. Neon database (5 min)
 1. Open https://neon.com and click **Sign up** → **Continue with GitHub**.
-2. Create a project named `mealconnect`, Postgres 16 or newer, region **AWS Asia Pacific (Singapore)**.
+2. Create a project named `mealconnect`, Postgres 16 or newer, region **AWS US East 2 (Ohio)**, because Render is set to Ohio too (`region` in `render.yaml` must match the Neon region).
 3. On the project dashboard click **Connect**, copy the connection string (`postgresql://…?sslmode=require`). **Treat it as a password**: never paste it into GitHub, chat or a file in this repo.
 
 ## 2. Upstash Redis (3 min)
-1. Open https://upstash.com → sign in with GitHub → **Create database**, name `mealconnect`, region **Singapore**, plan **Free**.
+1. Open https://upstash.com → sign in with GitHub → **Create database**, name `mealconnect`, the region nearest Ohio (US East), plan **Free**.
 2. Copy the `rediss://default:…@…upstash.io:6379` URL from the **Connect** section (the TLS one, starting `rediss://`).
 
 ## 3. Render API (10 min)
@@ -99,6 +99,7 @@ No GitHub Actions *secrets* are needed. Never commit `.env` files.
 | Render log: `password authentication failed` / `SSL` | Re-copy the Neon string; it must include `sslmode=require`. |
 | Render log: `too many connections` | Lower `DB_POOL_SIZE`; use Neon's pooled string. |
 | `health/ready` shows redis unavailable | Check the URL starts with `rediss://`; raise `REDIS_SOCKET_TIMEOUT`. The site still works, only caching/rate limits/emails are affected. |
+| Local Mac test: `CERTIFICATE_VERIFY_FAILED` when connecting to Upstash | Python from python.org has no CA bundle. `export SSL_CERT_FILE=/etc/ssl/cert.pem` (Render on Linux is not affected). |
 | Emails/refunds never processed | Job queue needs Redis. Check Upstash is reachable; look for `worker started` in the Render logs. |
 | Login says too many attempts for everyone | Wrong `TRUSTED_PROXY_COUNT`: all users share one IP. Adjust after checking `X-Forwarded-For` in the logs. |
 
