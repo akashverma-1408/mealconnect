@@ -7,7 +7,7 @@ so authentication and authorization are written once and reused everywhere.
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Query
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -63,3 +63,18 @@ def require_roles(*roles: UserRole) -> Callable[[User], User]:
 CustomerUser = Annotated[User, Depends(require_roles(UserRole.CUSTOMER))]
 OwnerUser = Annotated[User, Depends(require_roles(UserRole.RESTAURANT_OWNER))]
 AdminUser = Annotated[User, Depends(require_roles(UserRole.ADMIN))]
+
+
+class PageParams:
+    """?page=1&size=20 query parameters, validated once for every list endpoint."""
+
+    def __init__(
+        self,
+        page: Annotated[int, Query(ge=1, description="Page number (1-based)")] = 1,
+        size: Annotated[int, Query(ge=1, le=100, description="Items per page (max 100)")] = 20,
+    ) -> None:
+        self.page = page
+        self.size = size
+
+
+Pagination = Annotated[PageParams, Depends()]

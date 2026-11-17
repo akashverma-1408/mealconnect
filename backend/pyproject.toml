@@ -11,6 +11,9 @@ addopts = "-q"
 line-length = 100
 target-version = "py313"
 
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]  # long assertion lines are clearer unwrapped
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
-ignore = ["B008"]  # FastAPI uses function calls (Depends) in defaults
+ignore = ["B008", "UP046", "UP047"]  # B008: FastAPI Depends() defaults; UP046/7: keep Generic[T] style

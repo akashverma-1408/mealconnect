@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     # Cost factor: each +1 doubles hashing time. 12 ≈ 0.2 s (slow for attackers);
     # the test suite lowers it to 4 so hundreds of hashes stay fast.
     BCRYPT_ROUNDS: int = 12
+    # --- Payments ---
+    # "mock" = built-in sandbox gateway (signed webhooks, no external account needed).
+    # Phase 8 adds a real provider in test mode behind the same interface.
+    PAYMENT_PROVIDER: Literal["mock"] = "mock"
+    PAYMENT_WEBHOOK_SECRET: str
+    CURRENCY: str = "INR"
+
     # Comma-separated list, e.g. "http://localhost:5173,https://mealconnect.example.com"
     CORS_ORIGINS: str = "http://localhost:5173"
 

@@ -7,7 +7,6 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     DateTime,
-    Enum,
     ForeignKey,
     Index,
     String,
@@ -16,7 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, IdMixin, TimestampMixin
+from app.db.base import Base, IdMixin, TimestampMixin, pg_enum
 
 
 class UserRole(enum.StrEnum):
@@ -28,11 +27,6 @@ class UserRole(enum.StrEnum):
 class UserStatus(enum.StrEnum):
     ACTIVE = "active"
     SUSPENDED = "suspended"
-
-
-def pg_enum(enum_cls: type[enum.Enum], name: str) -> Enum:
-    """Native PostgreSQL ENUM storing the lowercase *values* (not the Python names)."""
-    return Enum(enum_cls, name=name, values_callable=lambda e: [m.value for m in e])
 
 
 class User(IdMixin, TimestampMixin, Base):

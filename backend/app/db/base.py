@@ -1,8 +1,9 @@
 """Declarative base class shared by every ORM model."""
 
+import enum
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Identity, MetaData, func
+from sqlalchemy import BigInteger, DateTime, Enum, Identity, MetaData, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Predictable constraint names (e.g. "uq_users_email") so Alembic migrations can
@@ -34,3 +35,8 @@ class TimestampMixin:
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
+
+
+def pg_enum(enum_cls: type[enum.Enum], name: str) -> Enum:
+    """Native PostgreSQL ENUM storing the enum *values* (e.g. 'customer'), not the Python names."""
+    return Enum(enum_cls, name=name, values_callable=lambda e: [m.value for m in e])

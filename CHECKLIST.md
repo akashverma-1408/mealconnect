@@ -15,7 +15,7 @@
 - [x] Phase 2 — System design (`docs/phase-02-system-design/`: SRS, use case, architecture, DFD, state machine, sequence, ER, schema, API)
 - [x] Phase 3 — Environment setup (`docs/phase-03-environment-setup.md`, `scripts/check-env.sh`)
 - [x] Phase 4 — Backend foundation + auth/users slice (`docs/phase-04-backend.md`; 13 endpoints, 49 tests, 90% coverage)
-- [ ] Phase 5 — Database + domain APIs (restaurants, menu, cart, orders, payments, reviews, complaints, admin; migrations, seed data)
+- [x] Phase 5 — Database + domain APIs (`docs/phase-05-database-and-domain-apis.md`; 16 tables, 69 endpoints, 99 tests, seed data, smoke test)
 - [ ] Phase 6 — Frontend (React)
 - [ ] Phase 7 — Integration (customer / restaurant / admin flows)
 - [ ] Phase 8 — Advanced (Redis, notifications, payments, security, performance)
@@ -28,7 +28,7 @@
 ## Final deliverables
 - [ ] Source code
 - [ ] Working frontend + backend
-- [ ] PostgreSQL database
+- [x] PostgreSQL database (16 tables, migrations, seed data)
 - [ ] API documentation
 - [ ] Unit + integration tests
 - [ ] Dockerized app
